@@ -26,6 +26,7 @@ Creates a new party.
 | `party_type` | string | Yes | Classification of the party (`MERCHANT`, `EMPLOYER`, `INDIVIDUAL`, `ORGANIZATION`) |
 | `is_active` | boolean | No | Whether the party is currently active (default: `true`) |
 | `party_code` | string | Yes | Unique system code (e.g., "MERCHANT_SUPERMARKET_01") |
+| `iban` | string | No | Optional International Bank Account Number (e.g., "NL91ABNA0417164300") |
 | `notes` | string | No | Optional additional details or notes |
 
 **Response (201 Created):**
@@ -37,6 +38,7 @@ Creates a new party.
 | `party_type` | string | Classification of the party |
 | `is_active` | boolean | Active status |
 | `party_code` | string | System code |
+| `iban` | string | International Bank Account Number (null if not provided) |
 | `notes` | string | Additional details |
 | `created_at` | timestamp | Creation timestamp |
 | `updated_at` | timestamp | Last update timestamp |
@@ -52,6 +54,7 @@ Content-Type: application/json
   "party_type": "MERCHANT",
   "is_active": true,
   "party_code": "MERCHANT_LOCAL_SUPERMARKET",
+  "iban": "NL91ABNA0417164300",
   "notes": "Main grocery store downtown"
 }
 ```
@@ -80,6 +83,7 @@ Retrieves all parties, optionally filtered by party type or active status.
     "party_type": "MERCHANT",
     "is_active": true,
     "party_code": "MERCHANT_LOCAL_SUPERMARKET",
+    "iban": "NL91ABNA0417164300",
     "notes": "Main grocery store downtown",
     "created_at": "2023-01-01T10:00:00Z",
     "updated_at": "2023-01-01T10:00:00Z"
@@ -90,6 +94,7 @@ Retrieves all parties, optionally filtered by party type or active status.
     "party_type": "EMPLOYER",
     "is_active": true,
     "party_code": "EMPLOYER_INC",
+    "iban": null,
     "notes": "Primary employment salary source",
     "created_at": "2023-01-01T10:05:00Z",
     "updated_at": "2023-01-01T10:05:00Z"
@@ -112,6 +117,7 @@ Retrieves details of a single party by ID.
 | `party_type` | string | Classification of the party |
 | `is_active` | boolean | Active status |
 | `party_code` | string | System code |
+| `iban` | string | International Bank Account Number |
 | `notes` | string | Additional details |
 | `created_at` | timestamp | Creation timestamp |
 | `updated_at` | timestamp | Last update timestamp |
@@ -130,6 +136,7 @@ Updates an existing party.
 | `party_type` | string | No | New classification |
 | `is_active` | boolean | No | New active status |
 | `party_code` | string | No | New system code |
+| `iban` | string | No | New IBAN |
 | `notes` | string | No | New notes |
 
 **Response (200 OK):**
