@@ -1,9 +1,33 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Budgetify.Core.Data;
+using Budgetify.Core.Interfaces;
+using Budgetify.Core.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Register In-Memory Data Store (Singleton so state is shared across requests)
+builder.Services.AddSingleton<InMemoryDataStore>();
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// Register Repositories
+builder.Services.AddSingleton<ICategoryRepository, InMemoryCategoryRepository>();
+builder.Services.AddSingleton<IPartyRepository, InMemoryPartyRepository>();
+builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
+builder.Services.AddSingleton<ITransactionRepository, InMemoryTransactionRepository>();
+builder.Services.AddSingleton<IBudgetRepository, InMemoryBudgetRepository>();
+
+// Register Services
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+
+// Configure Controllers with snake_case serialization matching API specs
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    });
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
