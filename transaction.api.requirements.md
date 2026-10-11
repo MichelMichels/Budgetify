@@ -3,7 +3,7 @@
 ## Overview
 
 The Transaction API manages financial records (expenses and income) across the application.
-Transactions are associated with expense types defined in the Expense-Type API and parties defined in the Party API to enable category-based budgeting, counterparty tracking, and reporting.
+Transactions are associated with categories defined in the Category API and counterparties defined in the Party API to enable budgeting, reporting, and cash-flow tracking.
 
 All amounts are stored in cents to ensure precision.
 
@@ -25,9 +25,12 @@ Creates a new transaction record.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `amount` | integer | Yes | Transaction amount in cents (e.g., `4599` for 45.99) |
+| `currency` | string | No | 3-letter ISO 4217 currency code (e.g., `"EUR"`, `"USD"`, default: `"EUR"`) |
 | `type` | string | Yes | Transaction type (`EXPENSE` or `INCOME`) |
-| `expense_type_id` | UUID | Conditional | ID of the associated expense type (required if `type` is `EXPENSE`) |
-| `party_id` | UUID | No | ID of the associated party / counterparty |
+| `category_id` | UUID | Yes | ID of the associated category (from Category API) |
+| `party_id` | UUID | No | ID of the associated party / counterparty (from Party API) |
+| `payment_method` | string | No | Payment method (`CREDIT_CARD`, `DEBIT_CARD`, `BANK_TRANSFER`, `CASH`, `OTHER`) |
+| `is_recurring` | boolean | No | Whether the transaction is recurring (e.g. subscription, rent) (default: `false`) |
 | `transaction_date` | timestamp | Yes | Date and time the transaction took place (ISO 8601) |
 | `description` | string | Yes | Human-readable title or memo |
 | `notes` | string | No | Optional additional details or notes |
@@ -38,9 +41,12 @@ Creates a new transaction record.
 |-------|------|-------------|
 | `id` | UUID | Unique identifier |
 | `amount` | integer | Amount in cents |
+| `currency` | string | ISO 4217 currency code |
 | `type` | string | Transaction type (`EXPENSE` or `INCOME`) |
-| `expense_type_id` | UUID | Associated expense type ID |
+| `category_id` | UUID | Associated category ID |
 | `party_id` | UUID | Associated party ID |
+| `payment_method` | string | Payment method |
+| `is_recurring` | boolean | Recurring payment flag |
 | `transaction_date` | timestamp | Transaction timestamp |
 | `description` | string | Human-readable title |
 | `notes` | string | Additional details |
@@ -55,9 +61,12 @@ Content-Type: application/json
 
 {
   "amount": 4599,
+  "currency": "EUR",
   "type": "EXPENSE",
-  "expense_type_id": "123e4567-e89b-12d3-a456-426614174001",
+  "category_id": "123e4567-e89b-12d3-a456-426614174000",
   "party_id": "323e4567-e89b-12d3-a456-426614174000",
+  "payment_method": "DEBIT_CARD",
+  "is_recurring": false,
   "transaction_date": "2023-01-15T14:30:00Z",
   "description": "Weekly groceries",
   "notes": "Purchased organic produce and dairy"
@@ -66,7 +75,7 @@ Content-Type: application/json
 
 ### List All Transactions
 
-Retrieves transactions, optionally filtered by date range, expense type, party, or transaction type.
+Retrieves transactions, optionally filtered by date range, category, party, payment method, recurring status, or transaction type.
 
 **Endpoint:** `GET /transaction`
 
@@ -76,9 +85,12 @@ Retrieves transactions, optionally filtered by date range, expense type, party, 
 |-----------|------|-------------|
 | `start_date` | timestamp | Filter transactions on or after this date (ISO 8601) |
 | `end_date` | timestamp | Filter transactions on or before this date (ISO 8601) |
-| `expense_type_id` | UUID | Filter by associated expense type ID |
+| `category_id` | UUID | Filter by associated category ID |
 | `party_id` | UUID | Filter by associated party ID |
 | `type` | string | Filter by transaction type (`EXPENSE` or `INCOME`) |
+| `currency` | string | Filter by currency code |
+| `payment_method` | string | Filter by payment method |
+| `is_recurring` | boolean | Filter by recurring status |
 | `limit` | integer | Maximum number of transactions to return (default: 50) |
 | `offset` | integer | Number of records to skip for pagination (default: 0) |
 
@@ -89,9 +101,12 @@ Retrieves transactions, optionally filtered by date range, expense type, party, 
   {
     "id": "223e4567-e89b-12d3-a456-426614174000",
     "amount": 4599,
+    "currency": "EUR",
     "type": "EXPENSE",
-    "expense_type_id": "123e4567-e89b-12d3-a456-426614174001",
+    "category_id": "123e4567-e89b-12d3-a456-426614174000",
     "party_id": "323e4567-e89b-12d3-a456-426614174000",
+    "payment_method": "DEBIT_CARD",
+    "is_recurring": false,
     "transaction_date": "2023-01-15T14:30:00Z",
     "description": "Weekly groceries",
     "notes": "Purchased organic produce and dairy",
@@ -101,9 +116,12 @@ Retrieves transactions, optionally filtered by date range, expense type, party, 
   {
     "id": "223e4567-e89b-12d3-a456-426614174001",
     "amount": 350000,
+    "currency": "EUR",
     "type": "INCOME",
-    "expense_type_id": null,
+    "category_id": "123e4567-e89b-12d3-a456-426614174002",
     "party_id": "323e4567-e89b-12d3-a456-426614174001",
+    "payment_method": "BANK_TRANSFER",
+    "is_recurring": true,
     "transaction_date": "2023-01-01T09:00:00Z",
     "description": "Monthly Salary",
     "notes": "January salary deposit",
@@ -125,9 +143,12 @@ Retrieves details of a single transaction by ID.
 |-------|------|-------------|
 | `id` | UUID | Unique identifier |
 | `amount` | integer | Amount in cents |
+| `currency` | string | ISO 4217 currency code |
 | `type` | string | Transaction type (`EXPENSE` or `INCOME`) |
-| `expense_type_id` | UUID | Associated expense type ID |
+| `category_id` | UUID | Associated category ID |
 | `party_id` | UUID | Associated party ID |
+| `payment_method` | string | Payment method |
+| `is_recurring` | boolean | Recurring payment flag |
 | `transaction_date` | timestamp | Transaction timestamp |
 | `description` | string | Human-readable title |
 | `notes` | string | Additional details |
@@ -145,9 +166,12 @@ Updates an existing transaction.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `amount` | integer | No | New amount in cents (must be greater than 0) |
+| `currency` | string | No | New ISO 4217 currency code |
 | `type` | string | No | New transaction type (`EXPENSE` or `INCOME`) |
-| `expense_type_id` | UUID | No | New associated expense type ID |
+| `category_id` | UUID | No | New associated category ID |
 | `party_id` | UUID | No | New associated party ID |
+| `payment_method` | string | No | New payment method |
+| `is_recurring` | boolean | No | New recurring status |
 | `transaction_date` | timestamp | No | New transaction timestamp (ISO 8601) |
 | `description` | string | No | New description |
 | `notes` | string | No | New notes |
@@ -164,7 +188,7 @@ Deletes a transaction by ID.
 
 **Constraints:**
 - The transaction record is permanently deleted.
-- Does not affect the associated expense type or party.
+- Does not affect the associated category or party.
 
 **Response (204 No Content):**
 - Success
