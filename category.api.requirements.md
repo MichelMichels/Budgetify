@@ -12,6 +12,23 @@ All amounts are stored in cents to ensure precision.
 The base URL for all API endpoints is:
 `https://[IP_ADDRESS]/api/v1`
 
+## Lifecycle and Validation Rules
+
+### 1. Soft Deactivation vs. Hard Deletion
+- **Soft Deactivation (`is_active: false`):**
+  - When a category is retired or no longer needed, it should be deactivated by updating `is_active: false` via `PUT /category/{id}`.
+  - Deactivated categories are excluded from active selection lists when creating or updating transactions.
+  - Deactivated categories **remain fully intact** in historical transactions, budget history, and past reporting.
+- **Hard Deletion (`DELETE /category/{id}`):**
+  - A category can **only** be permanently deleted if it has **zero associated transactions**.
+  - If any transactions are linked to the category, deletion is blocked (`400 Bad Request`).
+
+### 2. Category Flow Type Validation
+- The `flow_type` (`EXPENSE` or `INCOME`) enforces transaction categorization:
+  - `EXPENSE` transactions must link to an `EXPENSE` category.
+  - `INCOME` transactions must link to an `INCOME` category.
+  - Mismatched assignments are rejected with `400 Bad Request`.
+
 ## Endpoints
 
 ### Create Category
@@ -66,7 +83,7 @@ Retrieves all categories, optionally filtered by flow type or active status.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `flow_type` | string | Filter by cash-flow type (`EXPENSE` or `INCOME`) |
-| `is_active` | boolean | Filter by active status |
+| `is_active` | boolean | Filter by active status (pass `true` to list only active categories for forms/pickers) |
 
 **Response (200 OK):**
 
@@ -122,7 +139,7 @@ Retrieves details of a single category by ID.
 
 ### Update Category
 
-Updates an existing category.
+Updates an existing category. Use this endpoint to soft-deactivate a category by setting `is_active: false`.
 
 **Endpoint:** `PUT /category/{id}`
 
@@ -132,7 +149,7 @@ Updates an existing category.
 |-------|------|----------|-------------|
 | `description` | string | No | New description |
 | `flow_type` | string | No | New cash-flow type (`EXPENSE` or `INCOME`) |
-| `is_active` | boolean | No | New active status |
+| `is_active` | boolean | No | New active status (`false` to deactivate) |
 | `category_code` | string | No | New system code |
 
 **Response (200 OK):**
@@ -148,9 +165,10 @@ Deletes a category by ID.
 **Constraints:**
 - A category cannot be deleted if it has any associated transactions.
 - All associated transactions must be re-assigned to a different category before deletion.
+- For retired categories with existing transaction history, use soft deactivation (`is_active: false`) instead.
 
 **Response (204 No Content):**
 - Success
 
 **Error (400 Bad Request):**
-- "Cannot delete category with associated transactions"
+- "Cannot delete category with associated transactions. Use soft deactivation instead."

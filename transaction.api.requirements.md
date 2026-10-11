@@ -20,9 +20,24 @@ The base URL for all API endpoints is:
 
 | Type | Description | Source Account (`account_id`) | Destination Account (`destination_account_id`) | Category Requirement |
 |------|-------------|-------------------------------|------------------------------------------------|----------------------|
-| `EXPENSE` | Money spent at an external merchant | Decreases balance (`-amount`) | N/A (`null`) | Required |
+| `EXPENSE` | Money spent at an external merchant (or refund received) | Decreases balance (`-amount`) | N/A (`null`) | Required |
 | `INCOME` | Money received from an employer/source | Increases balance (`+amount`) | N/A (`null`) | Required |
 | `TRANSFER` | Money moved between internal accounts | Decreases balance (`-amount`) | Increases balance (`+amount`) | Optional |
+
+### Negative Amounts & Refunds
+- **Negative Expenses (Refunds/Returns):** An `EXPENSE` transaction may have a negative amount (e.g., `-3000` for a €30.00 merchant refund). A negative expense reduces total reported category spend and increases the source account balance by €30.00.
+- **Negative Income:** An `INCOME` transaction with a negative amount reflects an income clawback or deduction.
+- **Zero Amounts:** An amount of `0` is invalid.
+
+## Validation Rules
+
+1. **Category Flow Type Matching:**
+   - When `type` is `EXPENSE`, the assigned `category_id` must have `flow_type: "EXPENSE"`.
+   - When `type` is `INCOME`, the assigned `category_id` must have `flow_type: "INCOME"`.
+   - Creating or updating a transaction with mismatched category flow types must return `400 Bad Request`.
+2. **Transfer Validation:**
+   - When `type` is `TRANSFER`, `destination_account_id` is required and must not equal `account_id`.
+   - `amount` for transfers must be a positive integer.
 
 ## Endpoints
 
@@ -36,7 +51,7 @@ Creates a new transaction record.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `amount` | integer | Yes | Transaction amount in cents (e.g., `4599` for 45.99) |
+| `amount` | integer | Yes | Transaction amount in cents (positive for standard spend/income, negative for refunds/returns; cannot be 0) |
 | `currency` | string | No | 3-letter ISO 4217 currency code (default: `"EUR"`) |
 | `type` | string | Yes | Transaction type (`EXPENSE`, `INCOME`, or `TRANSFER`) |
 | `account_id` | UUID | Yes | Source account ID (or account receiving income) |
@@ -91,7 +106,29 @@ Content-Type: application/json
 }
 ```
 
-**Example 2: Savings Transfer**
+**Example 2: Refund (Negative Expense)**
+
+```http
+POST /transaction HTTP/1.1
+Content-Type: application/json
+
+{
+  "amount": -2500,
+  "currency": "EUR",
+  "type": "EXPENSE",
+  "account_id": "523e4567-e89b-12d3-a456-426614174000",
+  "destination_account_id": null,
+  "category_id": "123e4567-e89b-12d3-a456-426614174000",
+  "party_id": "323e4567-e89b-12d3-a456-426614174000",
+  "payment_method": "DEBIT_CARD",
+  "is_recurring": false,
+  "transaction_date": "2023-01-18T10:00:00Z",
+  "description": "Returned grocery item",
+  "notes": "Refund credited to debit card"
+}
+```
+
+**Example 3: Savings Transfer**
 
 ```http
 POST /transaction HTTP/1.1
@@ -213,7 +250,7 @@ Updates an existing transaction.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `amount` | integer | No | New amount in cents (must be greater than 0) |
+| `amount` | integer | No | New amount in cents (cannot be 0) |
 | `currency` | string | No | New ISO 4217 currency code |
 | `type` | string | No | New transaction type (`EXPENSE`, `INCOME`, `TRANSFER`) |
 | `account_id` | UUID | No | New source account ID |

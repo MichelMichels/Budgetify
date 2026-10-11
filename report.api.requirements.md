@@ -178,6 +178,12 @@ Ranks top counterparties and merchants by total spend amount.
 
 Compares budgeted targets from the Budget API against actual transactions from the Transaction API for a target period.
 
+**Budget Resolution Rules:**
+For each category, the effective budget target for the requested month is resolved by priority:
+1. **Specific Month Override:** Checks for a budget matching `category_id` and the requested `period` (e.g. `"2023-01"`).
+2. **Recurring Baseline:** If no override exists, automatically uses the category's perpetual monthly budget where `period` is `null`.
+3. If neither exists, the category has no budget for that month and is reported with `budget_amount: null`.
+
 **Endpoint:** `GET /report/budget-variance`
 
 **Query Parameters:**
@@ -206,7 +212,9 @@ Compares budgeted targets from the Budget API against actual transactions from t
       "actual_amount": 51200,
       "variance_amount": -1200,
       "utilization_percentage": 102.40,
-      "is_over_budget": true
+      "is_over_budget": true,
+      "is_recurring": true,
+      "is_override": false
     },
     {
       "category_id": "123e4567-e89b-12d3-a456-426614174001",
@@ -215,7 +223,9 @@ Compares budgeted targets from the Budget API against actual transactions from t
       "actual_amount": 17250,
       "variance_amount": 7750,
       "utilization_percentage": 69.00,
-      "is_over_budget": false
+      "is_over_budget": false,
+      "is_recurring": false,
+      "is_override": true
     }
   ]
 }

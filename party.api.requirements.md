@@ -10,6 +10,17 @@ Parties are linked to transactions to facilitate counterparty tracking, vendor r
 The base URL for all API endpoints is:
 `https://[IP_ADDRESS]/api/v1`
 
+## Lifecycle Rules
+
+### Soft Deactivation vs. Hard Deletion
+- **Soft Deactivation (`is_active: false`):**
+  - When a merchant or counterparty is no longer in use, update `is_active: false` via `PUT /party/{id}`.
+  - Deactivated parties are excluded from active selection lists when creating or updating transactions.
+  - Deactivated parties **remain fully intact** on past transactions and historical vendor reporting.
+- **Hard Deletion (`DELETE /party/{id}`):**
+  - A party can **only** be permanently deleted if it has **zero associated transactions**.
+  - If any transactions are linked to the party, deletion is blocked (`400 Bad Request`).
+
 ## Endpoints
 
 ### Create Party
@@ -70,7 +81,7 @@ Retrieves all parties, optionally filtered by party type or active status.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `party_type` | string | Filter by party classification (`MERCHANT`, `EMPLOYER`, `INDIVIDUAL`, `ORGANIZATION`) |
-| `is_active` | boolean | Filter by active status |
+| `is_active` | boolean | Filter by active status (pass `true` to list only active parties for forms/pickers) |
 | `search` | string | Case-insensitive search on name or party code |
 
 **Response (200 OK):**
@@ -124,7 +135,7 @@ Retrieves details of a single party by ID.
 
 ### Update Party
 
-Updates an existing party.
+Updates an existing party. Use this endpoint to soft-deactivate a party by setting `is_active: false`.
 
 **Endpoint:** `PUT /party/{id}`
 
@@ -134,7 +145,7 @@ Updates an existing party.
 |-------|------|----------|-------------|
 | `name` | string | No | New name |
 | `party_type` | string | No | New classification |
-| `is_active` | boolean | No | New active status |
+| `is_active` | boolean | No | New active status (`false` to deactivate) |
 | `party_code` | string | No | New system code |
 | `iban` | string | No | New IBAN |
 | `notes` | string | No | New notes |
@@ -152,9 +163,10 @@ Deletes a party by ID.
 **Constraints:**
 - A party cannot be deleted if it has any associated transactions.
 - All associated transactions must be re-assigned to a different party or removed before deletion.
+- For counterparties with historical transactions, use soft deactivation (`is_active: false`) instead.
 
 **Response (204 No Content):**
 - Success
 
 **Error (400 Bad Request):**
-- "Cannot delete party with associated transactions"
+- "Cannot delete party with associated transactions. Use soft deactivation instead."
