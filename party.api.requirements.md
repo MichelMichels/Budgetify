@@ -1,0 +1,153 @@
+# Party API
+
+## Overview
+
+The Party API manages external entities and counterparties involved in financial transactions, such as merchants, vendors, employers, service providers, and individuals.
+Parties are linked to transactions to facilitate counterparty tracking, vendor reporting, and cash-flow categorization.
+
+## Base URL
+
+The base URL for all API endpoints is:
+`https://[IP_ADDRESS]/api/v1`
+
+## Endpoints
+
+### Create Party
+
+Creates a new party.
+
+**Endpoint:** `POST /party`
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Human-readable name of the merchant, vendor, or entity |
+| `party_type` | string | Yes | Classification of the party (`MERCHANT`, `EMPLOYER`, `INDIVIDUAL`, `ORGANIZATION`) |
+| `is_active` | boolean | No | Whether the party is currently active (default: `true`) |
+| `party_code` | string | Yes | Unique system code (e.g., "MERCHANT_SUPERMARKET_01") |
+| `notes` | string | No | Optional additional details or notes |
+
+**Response (201 Created):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `name` | string | Name of the party |
+| `party_type` | string | Classification of the party |
+| `is_active` | boolean | Active status |
+| `party_code` | string | System code |
+| `notes` | string | Additional details |
+| `created_at` | timestamp | Creation timestamp |
+| `updated_at` | timestamp | Last update timestamp |
+
+**Example:**
+
+```http
+POST /party HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "Local Supermarket",
+  "party_type": "MERCHANT",
+  "is_active": true,
+  "party_code": "MERCHANT_LOCAL_SUPERMARKET",
+  "notes": "Main grocery store downtown"
+}
+```
+
+### List All Parties
+
+Retrieves all parties, optionally filtered by party type or active status.
+
+**Endpoint:** `GET /party`
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `party_type` | string | Filter by party classification (`MERCHANT`, `EMPLOYER`, `INDIVIDUAL`, `ORGANIZATION`) |
+| `is_active` | boolean | Filter by active status |
+| `search` | string | Case-insensitive search on name or party code |
+
+**Response (200 OK):**
+
+```json
+[
+  {
+    "id": "323e4567-e89b-12d3-a456-426614174000",
+    "name": "Local Supermarket",
+    "party_type": "MERCHANT",
+    "is_active": true,
+    "party_code": "MERCHANT_LOCAL_SUPERMARKET",
+    "notes": "Main grocery store downtown",
+    "created_at": "2023-01-01T10:00:00Z",
+    "updated_at": "2023-01-01T10:00:00Z"
+  },
+  {
+    "id": "323e4567-e89b-12d3-a456-426614174001",
+    "name": "Employer Inc.",
+    "party_type": "EMPLOYER",
+    "is_active": true,
+    "party_code": "EMPLOYER_INC",
+    "notes": "Primary employment salary source",
+    "created_at": "2023-01-01T10:05:00Z",
+    "updated_at": "2023-01-01T10:05:00Z"
+  }
+]
+```
+
+### Get Party Details
+
+Retrieves details of a single party by ID.
+
+**Endpoint:** `GET /party/{id}`
+
+**Response (200 OK):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `name` | string | Name of the party |
+| `party_type` | string | Classification of the party |
+| `is_active` | boolean | Active status |
+| `party_code` | string | System code |
+| `notes` | string | Additional details |
+| `created_at` | timestamp | Creation timestamp |
+| `updated_at` | timestamp | Last update timestamp |
+
+### Update Party
+
+Updates an existing party.
+
+**Endpoint:** `PUT /party/{id}`
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | No | New name |
+| `party_type` | string | No | New classification |
+| `is_active` | boolean | No | New active status |
+| `party_code` | string | No | New system code |
+| `notes` | string | No | New notes |
+
+**Response (200 OK):**
+
+Returns the updated party object.
+
+### Delete Party
+
+Deletes a party by ID.
+
+**Endpoint:** `DELETE /party/{id}`
+
+**Constraints:**
+- A party cannot be deleted if it has any associated transactions.
+- All associated transactions must be re-assigned to a different party or removed before deletion.
+
+**Response (204 No Content):**
+- Success
+
+**Error (400 Bad Request):**
+- "Cannot delete party with associated transactions"
