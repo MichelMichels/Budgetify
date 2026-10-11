@@ -2,8 +2,12 @@
 
 ## Overview
 
-The Transaction API manages financial records (expenses and income) across the application.
-Transactions are associated with categories defined in the Category API and counterparties defined in the Party API to enable budgeting, reporting, and cash-flow tracking.
+The Transaction API manages financial records across the application: expenses, income, and transfers.
+Transactions are associated with:
+- An origin account defined in the Account API (`account_id`).
+- For transfers: a destination account (`destination_account_id`) to move money between accounts (e.g., Checking → Savings) without distorting expense reports.
+- Categories defined in the Category API (`category_id`) for expense and income classification.
+- External counterparties defined in the Party API (`party_id`).
 
 All amounts are stored in cents to ensure precision.
 
@@ -11,6 +15,14 @@ All amounts are stored in cents to ensure precision.
 
 The base URL for all API endpoints is:
 `https://[IP_ADDRESS]/api/v1`
+
+## Transaction Types and Balance Rules
+
+| Type | Description | Source Account (`account_id`) | Destination Account (`destination_account_id`) | Category Requirement |
+|------|-------------|-------------------------------|------------------------------------------------|----------------------|
+| `EXPENSE` | Money spent at an external merchant | Decreases balance (`-amount`) | N/A (`null`) | Required |
+| `INCOME` | Money received from an employer/source | Increases balance (`+amount`) | N/A (`null`) | Required |
+| `TRANSFER` | Money moved between internal accounts | Decreases balance (`-amount`) | Increases balance (`+amount`) | Optional |
 
 ## Endpoints
 
@@ -25,10 +37,12 @@ Creates a new transaction record.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `amount` | integer | Yes | Transaction amount in cents (e.g., `4599` for 45.99) |
-| `currency` | string | No | 3-letter ISO 4217 currency code (e.g., `"EUR"`, `"USD"`, default: `"EUR"`) |
-| `type` | string | Yes | Transaction type (`EXPENSE` or `INCOME`) |
-| `category_id` | UUID | Yes | ID of the associated category (from Category API) |
-| `party_id` | UUID | No | ID of the associated party / counterparty (from Party API) |
+| `currency` | string | No | 3-letter ISO 4217 currency code (default: `"EUR"`) |
+| `type` | string | Yes | Transaction type (`EXPENSE`, `INCOME`, or `TRANSFER`) |
+| `account_id` | UUID | Yes | Source account ID (or account receiving income) |
+| `destination_account_id` | UUID | Conditional | Destination account ID (required if `type` is `TRANSFER`) |
+| `category_id` | UUID | Conditional | Category ID (required for `EXPENSE` and `INCOME`, optional for `TRANSFER`) |
+| `party_id` | UUID | No | Associated external party ID (merchant or employer) |
 | `payment_method` | string | No | Payment method (`CREDIT_CARD`, `DEBIT_CARD`, `BANK_TRANSFER`, `CASH`, `OTHER`) |
 | `is_recurring` | boolean | No | Whether the transaction is recurring (e.g. subscription, rent) (default: `false`) |
 | `transaction_date` | timestamp | Yes | Date and time the transaction took place (ISO 8601) |
@@ -42,7 +56,9 @@ Creates a new transaction record.
 | `id` | UUID | Unique identifier |
 | `amount` | integer | Amount in cents |
 | `currency` | string | ISO 4217 currency code |
-| `type` | string | Transaction type (`EXPENSE` or `INCOME`) |
+| `type` | string | Transaction type (`EXPENSE`, `INCOME`, `TRANSFER`) |
+| `account_id` | UUID | Source account ID |
+| `destination_account_id` | UUID | Destination account ID (null if not a transfer) |
 | `category_id` | UUID | Associated category ID |
 | `party_id` | UUID | Associated party ID |
 | `payment_method` | string | Payment method |
@@ -53,7 +69,7 @@ Creates a new transaction record.
 | `created_at` | timestamp | Creation timestamp |
 | `updated_at` | timestamp | Last update timestamp |
 
-**Example:**
+**Example 1: Expense**
 
 ```http
 POST /transaction HTTP/1.1
@@ -63,6 +79,8 @@ Content-Type: application/json
   "amount": 4599,
   "currency": "EUR",
   "type": "EXPENSE",
+  "account_id": "523e4567-e89b-12d3-a456-426614174000",
+  "destination_account_id": null,
   "category_id": "123e4567-e89b-12d3-a456-426614174000",
   "party_id": "323e4567-e89b-12d3-a456-426614174000",
   "payment_method": "DEBIT_CARD",
@@ -73,9 +91,31 @@ Content-Type: application/json
 }
 ```
 
+**Example 2: Savings Transfer**
+
+```http
+POST /transaction HTTP/1.1
+Content-Type: application/json
+
+{
+  "amount": 50000,
+  "currency": "EUR",
+  "type": "TRANSFER",
+  "account_id": "523e4567-e89b-12d3-a456-426614174000",
+  "destination_account_id": "523e4567-e89b-12d3-a456-426614174001",
+  "category_id": null,
+  "party_id": null,
+  "payment_method": "BANK_TRANSFER",
+  "is_recurring": true,
+  "transaction_date": "2023-01-15T15:00:00Z",
+  "description": "Monthly transfer to Savings",
+  "notes": "Emergency fund savings goal"
+}
+```
+
 ### List All Transactions
 
-Retrieves transactions, optionally filtered by date range, category, party, payment method, recurring status, or transaction type.
+Retrieves transactions, optionally filtered by date range, account, category, party, payment method, recurring status, or transaction type.
 
 **Endpoint:** `GET /transaction`
 
@@ -85,9 +125,11 @@ Retrieves transactions, optionally filtered by date range, category, party, paym
 |-----------|------|-------------|
 | `start_date` | timestamp | Filter transactions on or after this date (ISO 8601) |
 | `end_date` | timestamp | Filter transactions on or before this date (ISO 8601) |
+| `account_id` | UUID | Filter by source account ID |
+| `destination_account_id` | UUID | Filter by destination account ID |
 | `category_id` | UUID | Filter by associated category ID |
 | `party_id` | UUID | Filter by associated party ID |
-| `type` | string | Filter by transaction type (`EXPENSE` or `INCOME`) |
+| `type` | string | Filter by transaction type (`EXPENSE`, `INCOME`, `TRANSFER`) |
 | `currency` | string | Filter by currency code |
 | `payment_method` | string | Filter by payment method |
 | `is_recurring` | boolean | Filter by recurring status |
@@ -103,6 +145,8 @@ Retrieves transactions, optionally filtered by date range, category, party, paym
     "amount": 4599,
     "currency": "EUR",
     "type": "EXPENSE",
+    "account_id": "523e4567-e89b-12d3-a456-426614174000",
+    "destination_account_id": null,
     "category_id": "123e4567-e89b-12d3-a456-426614174000",
     "party_id": "323e4567-e89b-12d3-a456-426614174000",
     "payment_method": "DEBIT_CARD",
@@ -114,19 +158,21 @@ Retrieves transactions, optionally filtered by date range, category, party, paym
     "updated_at": "2023-01-15T14:32:00Z"
   },
   {
-    "id": "223e4567-e89b-12d3-a456-426614174001",
-    "amount": 350000,
+    "id": "223e4567-e89b-12d3-a456-426614174002",
+    "amount": 50000,
     "currency": "EUR",
-    "type": "INCOME",
-    "category_id": "123e4567-e89b-12d3-a456-426614174002",
-    "party_id": "323e4567-e89b-12d3-a456-426614174001",
+    "type": "TRANSFER",
+    "account_id": "523e4567-e89b-12d3-a456-426614174000",
+    "destination_account_id": "523e4567-e89b-12d3-a456-426614174001",
+    "category_id": null,
+    "party_id": null,
     "payment_method": "BANK_TRANSFER",
     "is_recurring": true,
-    "transaction_date": "2023-01-01T09:00:00Z",
-    "description": "Monthly Salary",
-    "notes": "January salary deposit",
-    "created_at": "2023-01-01T09:05:00Z",
-    "updated_at": "2023-01-01T09:05:00Z"
+    "transaction_date": "2023-01-15T15:00:00Z",
+    "description": "Monthly transfer to Savings",
+    "notes": "Emergency fund savings goal",
+    "created_at": "2023-01-15T15:00:00Z",
+    "updated_at": "2023-01-15T15:00:00Z"
   }
 ]
 ```
@@ -144,7 +190,9 @@ Retrieves details of a single transaction by ID.
 | `id` | UUID | Unique identifier |
 | `amount` | integer | Amount in cents |
 | `currency` | string | ISO 4217 currency code |
-| `type` | string | Transaction type (`EXPENSE` or `INCOME`) |
+| `type` | string | Transaction type (`EXPENSE`, `INCOME`, `TRANSFER`) |
+| `account_id` | UUID | Source account ID |
+| `destination_account_id` | UUID | Destination account ID |
 | `category_id` | UUID | Associated category ID |
 | `party_id` | UUID | Associated party ID |
 | `payment_method` | string | Payment method |
@@ -167,7 +215,9 @@ Updates an existing transaction.
 |-------|------|----------|-------------|
 | `amount` | integer | No | New amount in cents (must be greater than 0) |
 | `currency` | string | No | New ISO 4217 currency code |
-| `type` | string | No | New transaction type (`EXPENSE` or `INCOME`) |
+| `type` | string | No | New transaction type (`EXPENSE`, `INCOME`, `TRANSFER`) |
+| `account_id` | UUID | No | New source account ID |
+| `destination_account_id` | UUID | No | New destination account ID |
 | `category_id` | UUID | No | New associated category ID |
 | `party_id` | UUID | No | New associated party ID |
 | `payment_method` | string | No | New payment method |
@@ -188,7 +238,8 @@ Deletes a transaction by ID.
 
 **Constraints:**
 - The transaction record is permanently deleted.
-- Does not affect the associated category or party.
+- Reverses balance changes applied to `account_id` (and `destination_account_id` if a transfer).
+- Does not affect the associated category, account, or party entities.
 
 **Response (204 No Content):**
 - Success

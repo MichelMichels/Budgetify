@@ -2,10 +2,18 @@
 
 ## Overview
 
-The Report API generates aggregated analytics, breakdowns, and exports for reviewing expenses and overall cash flow.
-It summarizes category-level spend across flat categories, tracks vendor spend via parties, and computes budget-versus-actual variances.
+The Report API generates aggregated analytics, breakdowns, and exports for reviewing expenses, cash flow, and account balances.
+It summarizes category-level spend across flat categories, tracks vendor spend via parties, computes budget-versus-actual variances, and reports account balances.
 
 All amounts are calculated and returned in cents to ensure precision.
+
+## Transfer Handling Rules in Reports
+
+1. **Exclusion from Operating Metrics:**
+   - Internal transfers (`type: "TRANSFER"`) move funds between accounts (e.g. Checking → Savings).
+   - Transfers are **strictly excluded** from `total_expenses`, `total_income`, and category spend breakdowns so they do not artificially inflate cost-of-living or income figures.
+2. **Savings Tracking:**
+   - Transfers to savings accounts are tracked as `total_transfers_to_savings` to report on the user's savings rate and net asset growth.
 
 ## Base URL
 
@@ -23,7 +31,7 @@ Endpoints support a `format` query parameter:
 
 ### Expense and Cash Flow Summary
 
-Returns high-level totals (income, expenses, net cash flow) and period-by-period trend data.
+Returns high-level totals (income, expenses, net cash flow, and savings transfers) and trend data.
 
 **Endpoint:** `GET /report/expense-summary`
 
@@ -47,7 +55,9 @@ Returns high-level totals (income, expenses, net cash flow) and period-by-period
   "total_expenses": 184550,
   "total_income": 350000,
   "net_cash_flow": 165450,
-  "transaction_count": 42,
+  "total_transfers_to_savings": 50000,
+  "savings_rate_percentage": 14.29,
+  "transaction_count": 43,
   "average_expense_amount": 4394,
   "trend": [
     {
@@ -55,7 +65,8 @@ Returns high-level totals (income, expenses, net cash flow) and period-by-period
       "expenses": 184550,
       "income": 350000,
       "net": 165450,
-      "transaction_count": 42
+      "savings_transfers": 50000,
+      "transaction_count": 43
     }
   ]
 }
@@ -65,7 +76,7 @@ Returns high-level totals (income, expenses, net cash flow) and period-by-period
 
 ### Category Spending Breakdown
 
-Returns spending aggregated by each flat expense/income category, including each category's total amount, transaction count, and share of total spending.
+Returns spending aggregated by each flat category. Internal transfers are excluded.
 
 **Endpoint:** `GET /report/by-category`
 
@@ -214,7 +225,7 @@ Compares budgeted targets from the Budget API against actual transactions from t
 
 ### Recurring vs. Variable Expense Report
 
-Analyzes fixed/recurring expenditures (subscriptions, rent, utilities) compared against variable discretionary spending.
+Analyzes fixed/recurring expenditures compared against variable discretionary spending.
 
 **Endpoint:** `GET /report/recurring-expenses`
 
@@ -245,6 +256,45 @@ Analyzes fixed/recurring expenditures (subscriptions, rent, utilities) compared 
     "percentage": 48.52,
     "transaction_count": 36
   }
+}
+```
+
+---
+
+### Account Balances and Net Worth Report
+
+Summarizes current account balances across all accounts and reports net worth and savings growth.
+
+**Endpoint:** `GET /report/account-balances`
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `currency` | string | No | Currency code (default: `"EUR"`) |
+| `format` | string | No | Output format: `json`, `csv` (default: `json`) |
+
+**Response (200 OK - JSON format):**
+
+```json
+{
+  "currency": "EUR",
+  "net_worth": 1234550,
+  "liquid_assets": 1234550,
+  "accounts": [
+    {
+      "account_id": "523e4567-e89b-12d3-a456-426614174000",
+      "account_name": "Main Checking",
+      "account_type": "CHECKING",
+      "current_balance": 184550
+    },
+    {
+      "account_id": "523e4567-e89b-12d3-a456-426614174001",
+      "account_name": "High-Yield Savings",
+      "account_type": "SAVINGS",
+      "current_balance": 1050000
+    }
+  ]
 }
 ```
 
